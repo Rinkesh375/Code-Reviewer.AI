@@ -1,4 +1,5 @@
-"use server" // if I comment this  and use this use client I will get the error why reason I need 
+"use server";
+import { inngest } from "@/inngest/client";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { createWebhook, getRepositories } from "@/module/github/lib/github";
@@ -30,30 +31,46 @@ export const fetchRepositories = async (
   }));
 };
 
+export const connectRepository = async (
+  owner: string,
+  repo: string,
+  githubId: number
+) => {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
-export const connectRepository = async (owner: string, repo: string,githubId: number) => {
-      const session = await auth.api.getSession({
-        headers: await headers(),
-      });
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
 
-      if (!session) {
-        throw new Error("Unauthorized");
-      }
+  const webhook = await createWebhook(owner, repo);
 
-      const webhook = await createWebhook(owner, repo);
+  if (webhook) {
+    await prisma.repository.create({
+      data: {
+        githubId: BigInt(githubId),
+        name: repo,
+        owner,
+        fullName: `${owner}/${repo}`,
+        url: `https://github.com/${owner}/${repo}`,
+        userId: session.user.id,
+      },
+    });
+  }
 
-      if(webhook){
-        await prisma.repository.create({
-          data:{
-            githubId: BigInt(githubId),
-            name: repo,
-            owner,
-            fullName: `${owner}/${repo}`,
-            url: `https://github.com/${owner}/${repo}`,
-            userId: session.user.id,
-          }
-        })
-      }
+  try {
+    await inngest.send({
+      name: "repository.connected",
+      data: {
+        owner,
+        repo,
+        userId: session.user.id,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to trigger repository indexing:",error)
+  }
 
-      return webhook;
-}
+  return webhook;
+};

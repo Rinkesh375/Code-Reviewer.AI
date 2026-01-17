@@ -47,7 +47,6 @@ export const indexCodebase = async (
     }
   }
 
-  console.log("indexing complete.");
 };
 
 export const retrieveContext = async (

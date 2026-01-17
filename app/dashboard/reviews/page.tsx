@@ -20,7 +20,6 @@ export default function Page() {
     queryFn: getReviews,
   });
 
-  console.log(reviews);
   if (isLoading) {
     return <div>Loading Reviews...</div>;
   }

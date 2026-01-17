@@ -69,9 +69,6 @@ export const generateReview = inngest.createFunction(
       });
 
       if (repository) {
-        console.log(
-          "Saving completed review to database------------------------"
-        );
         await prisma.review.create({
           data: {
             repositoryId: repository.id,
@@ -82,9 +79,6 @@ export const generateReview = inngest.createFunction(
             status: "completed",
           },
         });
-        console.log(
-          "Saved completed review to database------------------------"
-        );
       }
     });
 

@@ -3,6 +3,7 @@ import { inngest } from "@/inngest/client";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { createWebhook, getRepositories } from "@/module/github/lib/github";
+import { canConnectRepository, incrementRepositoryCount } from "@/module/payment/lib/subscription";
 import { headers } from "next/headers";
 
 export const fetchRepositories = async (
@@ -43,6 +44,12 @@ export const connectRepository = async (
   if (!session) {
     throw new Error("Unauthorized");
   }
+  const canConnect = await canConnectRepository(session.user.id);
+  if (!canConnect) {
+    throw new Error(
+      "Repository limit reached. Please upgrade your plan to connect more repositories."
+    );
+  }
 
   const webhook = await createWebhook(owner, repo);
 
@@ -57,19 +64,21 @@ export const connectRepository = async (
         userId: session.user.id,
       },
     });
-  }
 
-  try {
-    await inngest.send({
-      name: "repository.connected",
-      data: {
-        owner,
-        repo,
-        userId: session.user.id,
-      },
-    });
-  } catch (error) {
-    console.error("Failed to trigger repository indexing:",error)
+    await incrementRepositoryCount(session.user.id);
+
+    try {
+      await inngest.send({
+        name: "repository.connected",
+        data: {
+          owner,
+          repo,
+          userId: session.user.id,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to trigger repository indexing:", error);
+    }
   }
 
   return webhook;

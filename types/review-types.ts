@@ -23,3 +23,22 @@ export type ReviewWithRepository = {
     userId: string;
   };
 };
+
+export type SubscriptionTier = "FREE" | "PRO";
+export type SubscriptionStatus = "ACTIVE" | "CANCELED" | "EXPIRED";
+
+export interface UserLimits {
+  tier: SubscriptionTier;
+  repositories: {
+    current: number;
+    limit: number | null; 
+    canAdd: boolean;
+  };
+  reviews: {
+    [repositoryId: string]: {
+      current: number;
+      limit: number | null;
+      canAdd: boolean;
+    };
+  };
+}

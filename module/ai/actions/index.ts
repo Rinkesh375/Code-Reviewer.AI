@@ -2,6 +2,10 @@
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/db";
 import { getPullRequestDiff } from "@/module/github/lib/github";
+import {
+  canCreateReview,
+  incrementReviewCount,
+} from "@/module/payment/lib/subscription";
 
 export const reviewPullRequest = async (
   owner: string,
@@ -33,6 +37,13 @@ export const reviewPullRequest = async (
       );
     }
 
+    const canReview = await canCreateReview(repository.user.id, repository.id);
+    if (!canReview) {
+      throw new Error(
+        `Review limit reached for this repository. Please upgrade your plan to continue generating reviews.`
+      );
+    }
+
     const githubAccount = repository.user.accounts[0];
     if (!githubAccount?.accessToken) {
       throw new Error("No GitHub access token found for repository owner.");
@@ -51,6 +62,7 @@ export const reviewPullRequest = async (
       },
     });
 
+    await incrementReviewCount(repository.user.id, repository.id);
     return { success: true, message: `Review Queued` };
   } catch (error) {
     try {
@@ -61,7 +73,6 @@ export const reviewPullRequest = async (
         },
       });
       if (repository) {
-        console.log("Saving failed review to database------------------------");
         await prisma.review.create({
           data: {
             repositoryId: repository.id,
@@ -74,7 +85,6 @@ export const reviewPullRequest = async (
             status: "failed",
           },
         });
-        console.log("Saved failed review to database------------------------");
       }
     } catch (dbError) {
       console.error("Failed to save error to database:", dbError);

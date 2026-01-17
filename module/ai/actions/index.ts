@@ -61,6 +61,7 @@ export const reviewPullRequest = async (
         },
       });
       if (repository) {
+        console.log("Saving failed review to database------------------------");
         await prisma.review.create({
           data: {
             repositoryId: repository.id,
@@ -73,6 +74,7 @@ export const reviewPullRequest = async (
             status: "failed",
           },
         });
+        console.log("Saved failed review to database------------------------");
       }
     } catch (dbError) {
       console.error("Failed to save error to database:", dbError);
